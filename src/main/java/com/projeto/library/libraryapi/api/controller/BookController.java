@@ -6,14 +6,20 @@ import com.projeto.library.libraryapi.api.exceptions.ApiErrors;
 import com.projeto.library.libraryapi.api.exceptions.BusinessExeption;
 import com.projeto.library.libraryapi.service.BookService;
 import org.modelmapper.ModelMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import javax.validation.Valid;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/books")
@@ -53,6 +59,47 @@ public class BookController {
 //                .build();
         // Mesmo result só que com o ModelMapper
         return modelMapper.map(entity, BookDTO.class);
+    }
+
+    @GetMapping("{id}")
+    public BookDTO get(@PathVariable Long id){
+        return bookService
+                .getById(id)
+                .map(book -> modelMapper.map(book, BookDTO.class)) // Se encontrar o livro, ele vai ser mapeado para o BookDTO
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND)); // Se o livro não for encontrado
+
+    }
+
+    @DeleteMapping("{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteBook(@PathVariable Long id){
+        // Se não achar o livro, nvai ser lançado a exeption not found
+        Book book = bookService.getById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        bookService.delete(book);
+    }
+
+    @PutMapping("{id}")
+    // Por default retorna status 200
+    public BookDTO updateBook(@PathVariable Long id, BookDTO bookDTO){
+        Book book = bookService.getById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        book.setAuthor(bookDTO.getAuthor());
+        book.setTitle(bookDTO.getTitle());
+        book = bookService.update(book);
+        return modelMapper.map(book, BookDTO.class);
+    }
+
+    // Quando for passado na query params as propriedades, o spring já encaixa com o nome do DTO
+    // A mesma coisa com o pageable
+    @GetMapping
+    public Page<BookDTO> find(BookDTO bookDTO, Pageable pageable) {
+        Book filter = modelMapper.map(bookDTO, Book.class);
+        Page<Book> result = bookService.find(filter, pageable);
+        List<BookDTO> list = result.getContent()
+                .stream() // a stream() serve para fazermos algumas operações em cima de coleções
+                .map(book -> modelMapper.map(book, BookDTO.class))
+                .collect(Collectors.toList());
+
+        return new PageImpl<BookDTO>(list, pageable, result.getTotalElements());
     }
 
     // Except handler

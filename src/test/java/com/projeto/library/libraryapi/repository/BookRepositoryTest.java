@@ -13,6 +13,8 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
+import java.util.Optional;
+
 @ExtendWith(SpringExtension.class)
 @ActiveProfiles("test")
 // Fazer testes com o jpa. Cria uma instancia do banco de dados em memoria para executar os testes e, quando
@@ -32,7 +34,7 @@ public class BookRepositoryTest {
         // cenário
         String isbn = "123";
         // Crio um livro
-        Book book = Book.builder().title("As aventuras").author("Leonardo").isbn(isbn).build();
+        Book book = Book.builder().title("Aventuras").author("Leonardo").isbn(isbn).build();
         entityManager.persist(book);
 
         // execução
@@ -53,5 +55,52 @@ public class BookRepositoryTest {
 
         // verificação
         Assertions.assertThat(isbnExists).isFalse();
+    }
+
+    @Test
+    @DisplayName("it should be able to return a book with an id")
+    public void getByIdTest(){
+        // cenário
+        Book book = createBook();
+        entityManager.persist(book);
+
+        // execução
+        Optional<Book> foundBook = bookRepository.findById(book.getId());
+
+        // verificação
+        Assertions.assertThat(foundBook.isPresent()).isTrue();
+    }
+
+    @Test
+    @DisplayName("it sould be able to save a book")
+    public void saveBook(){
+        // cenário
+        Book book = createBook();
+
+        // execução
+        Book savedBook = bookRepository.save(book);
+
+        // verificação
+        Assertions.assertThat(savedBook.getId()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("it sould be able to delete a book")
+    public void deleteBookTest(){
+        // cenário
+        Book book = createBook();
+        entityManager.persist(book);
+
+        // execução
+        Book foundBook = entityManager.find(Book.class, book.getId());
+        bookRepository.delete(foundBook);
+        Book deletedBook = entityManager.find(Book.class, book.getId());
+
+        // verificação
+        Assertions.assertThat(deletedBook).isNull();
+    }
+
+    private Book createBook() {
+        return Book.builder().title("Aventuras").author("Leonardo").isbn("123").build();
     }
 }
